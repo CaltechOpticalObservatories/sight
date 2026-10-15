@@ -2,7 +2,8 @@
 SIGHT RTC: GPU Real-time Build
 ==============================
 
-:Authors: [TBD]
+:Authors: Elijah Anakalea-Buckley (Caltech Optical Observatories),
+          Alex Walter (JPL)
 :Date: 2026-10-13
 :Hostname: ``hesperus``
 :User: ``hespy``
@@ -19,6 +20,9 @@ shared memory backed by RAM. Follow the three parts in order:
    RT kernel and CPU shielding.
 #. **Software build:** GPU driver, CUDA, framegrabber, MAGMA, Python, MILK and
    the RTC application.
+
+Results of the open commissioning tasks are recorded in
+:doc:`commissioning`.
 
 Build Layers
 ============
@@ -115,3 +119,4 @@ Conventions
    physical_build
    rt_build
    software_build
+   commissioning

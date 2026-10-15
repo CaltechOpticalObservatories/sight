@@ -97,20 +97,20 @@ BIOS Settings
    * - Above 4G decoding
      - Enabled
      - Required for multiple large-BAR GPUs
-   * - Hyper-Threading / SMT
-     - [TBD]
+   * - SMT
+     - Enabled (default)
      - Commonly disabled on RT systems for determinism
    * - C-states
-     - [TBD]
+     - C1 and C2 enabled (default)
      - Deep C-states add wake latency
-   * - Turbo / SpeedStep
-     - [TBD]
+   * - Core Performance Boost
+     - Enabled (default)
      - Frequency transitions add jitter
-   * - Virtualization / IOMMU
-     - [TBD]
+   * - SVM / IOMMU
+     - Both enabled (default)
      - Affects device isolation and latency
    * - Resizable BAR
-     - [TBD]
+     - Enabled (default; 32 GiB BAR1)
      - Evaluate against GPU workload
 
 .. note::
@@ -122,9 +122,10 @@ BIOS Settings
    :ref:`section-edt`, but it is not the path taken here.
 
 .. note::
-   The real-time firmware settings above are left open deliberately. Changing
-   power-management settings without a latency measurement to compare against
-   is guesswork; see :ref:`section-rt-pending`.
+   The real-time firmware settings above are recorded at their optimized
+   defaults and left there deliberately. Changing power-management settings
+   without a latency measurement to compare against is guesswork; see
+   :ref:`section-rt-pending`.
 
 ----
 
@@ -368,7 +369,7 @@ As-built Result
    * - Kernel
      - ``7.0.0-30-realtime``, ``PREEMPT_RT``
    * - Firmware
-     - [TBD], Secure Boot enabled
+     - American Megatrends 1317 (2026-02-03), Secure Boot enabled
    * - Operator account
      - ``hespy``
    * - Python (system)
@@ -391,13 +392,15 @@ real-time requirement. See :ref:`section-rt-pending`.
 GRUB Kernel Parameters **[reboot]**
 -----------------------------------
 
-Edit ``/etc/default/grub`` and set the shielded core range. The parameter set
-below is the conventional starting point; the specific core ranges for this
-machine are **[TBD]**:
+Edit ``/etc/default/grub`` and set the shielded core range. The ranges below
+are a proposed starting point for the 9970X (single NUMA node, SMT on):
+physical cores 0-1 and their SMT siblings 32-33 do housekeeping, and everything
+else is shielded. They are not final until the latency baseline confirms them
+(:ref:`section-rt-pending`):
 
 .. code-block:: text
 
-   GRUB_CMDLINE_LINUX_DEFAULT="quiet clocksource=tsc tsc=reliable nmi_watchdog=0 nosoftlockup isolcpus=domain,[TBD] rcu_nocbs=[TBD] nohz_full=[TBD] irqaffinity=[TBD] kthread_cpus=[TBD]"
+   GRUB_CMDLINE_LINUX_DEFAULT="quiet clocksource=tsc tsc=reliable nmi_watchdog=0 nosoftlockup isolcpus=domain,2-31,34-63 rcu_nocbs=2-31,34-63 nohz_full=2-31,34-63 irqaffinity=0-1,32-33 kthread_cpus=0-1,32-33"
 
 .. list-table::
    :header-rows: 1
@@ -424,6 +427,13 @@ machine are **[TBD]**:
 
 .. warning::
    The ``irqaffinity`` and ``isolcpus`` ranges **must not overlap**.
+
+.. note::
+   Each eight-core CCD on the 9970X shares one L3 cache, so housekeeping on
+   cores 0-1 shares cache with shielded cores 2-7. If the control loop needs
+   fewer cores than this leaves, move housekeeping to the whole of CPU 0's L3
+   group (``cat /sys/devices/system/cpu/cpu0/cache/index3/shared_cpu_list``)
+   and keep the loop on the other CCDs.
 
 .. code-block:: bash
 
@@ -454,7 +464,7 @@ Keep every systemd service, present and future, off the shielded cores. Edit
 .. code-block:: ini
 
    [Manager]
-   CPUAffinity=[TBD housekeeping range]
+   CPUAffinity=0-1,32-33
 
 .. code-block:: bash
 
@@ -478,6 +488,8 @@ Check C-states
    the power profile to *Maximum Performance* in :ref:`section-bios`.
 
 ----
+
+.. _section-services:
 
 9. Service Stripping
 ====================
@@ -503,7 +515,8 @@ against this machine's actual service set.
        update-notifier-download.timer \
        update-notifier-motd.timer \
        plocate-updatedb.timer \
-       apport.service
+       apport.service \
+       snapd.service snapd.socket
    do
        sudo systemctl disable --now "$svc" 2>/dev/null || true
    done
@@ -609,10 +622,10 @@ Reboot, then record the results as the as-built baseline. Do not start
      - ``3.14.4``
    * - Kernel cmdline
      - ``cat /proc/cmdline``
-     - matches :ref:`section-shielding` **[TBD]**
+     - matches :ref:`section-shielding`
    * - Isolated cores
      - ``cat /sys/devices/system/cpu/isolated``
-     - **[TBD]**
+     - ``2-31,34-63`` (proposed)
    * - irqbalance off
      - ``systemctl is-enabled irqbalance``
      - ``disabled`` / not-found
@@ -686,25 +699,34 @@ running on the isolated cores; recheck ``irqaffinity`` first.
 13. Pending Tasks
 =================
 
-* [ ] **RT-1: Latency budget and baseline.** No ``cyclictest`` result or jitter
-  requirement exists. This is the primary open gate for the build.
-* [ ] **RT-2: CPU shielding parameters.** ``isolcpus``, ``nohz_full``,
-  ``rcu_nocbs``, ``irqaffinity``, ``kthread_cpus`` and hugepage settings are
-  undetermined for this machine.
-* [ ] **RT-3: Firmware RT settings.** SMT, C-states, turbo, IOMMU and
-  Resizable BAR are left at optimized defaults pending measurement.
-* [ ] **RT-4: Secure Boot posture.** Confirmed as enabled, contrary to one
-  source note. Re-confirm at the next rebuild.
-* [ ] **RT-5: Service stripping list.** The list on this page is conventional,
-  not measured against this machine.
-* [ ] **RT-6: Patching policy.** ``unattended-upgrades`` is disabled; define a
-  manual maintenance window.
-* [ ] **RT-7: Storage layout.** Partitioning scheme and filesystem sizing for
-  ``/data`` are undocumented.
-* [ ] **RT-8: Network configuration.** Addressing, time sync and any
-  instrument-side links are undocumented.
+* [ ] **RT-1: Latency budget and baseline.** Requirement: timing jitter within
+  1% of the loop period; loop rate [TBD]. No ``cyclictest`` result exists yet
+  (:ref:`section-rec-latency`). This is the primary open gate for the build.
+* [ ] **RT-2: CPU shielding parameters.** Ranges proposed in
+  :ref:`section-shielding`, not yet applied: no cores are isolated as of
+  2026-10-15. Confirm against RT-1, and decide hugepage settings
+  (:ref:`section-rec-latency`).
+* [ ] **RT-3: Firmware RT settings.** Recorded 2026-10-15 at optimized
+  defaults: SMT, C1/C2, Core Performance Boost, SVM, IOMMU and Resizable BAR
+  all on, governor ``powersave``. Change only against a latency measurement
+  (:ref:`section-rec-firmware`).
+* [x] **RT-4: Secure Boot posture.** Confirmed enabled 2026-10-15. Re-confirm
+  at the next rebuild.
+* [ ] **RT-5: Service stripping list.** Not yet applied: as of 2026-10-15,
+  ``ModemManager``, ``apport``, ``snapd``, ``unattended-upgrades`` and the
+  ``apt-daily``, ``fwupd-refresh``, ``man-db``, ``motd-news`` and
+  ``update-notifier`` timers are still enabled (:ref:`section-rec-services`).
+* [ ] **RT-6: Patching policy.** ``unattended-upgrades`` is still enabled. Once
+  :ref:`section-services` disables it, define a manual maintenance window
+  [TBD].
+* [ ] **RT-7: Storage layout.** The installer's default LVM layout gave the
+  root logical volume 97.9 GB of the 3.84 TB disk, and ``/data`` sits on it.
+  Size a dedicated ``/data`` volume from the free space in ``ubuntu-vg``
+  (:ref:`section-rec-storage`).
+* [ ] **RT-8: Network configuration.** Static IPv4 on ``enp97s0`` with chrony
+  synchronized, recorded 2026-10-15. Instrument-side links [TBD].
 * [ ] **RT-9: Backup and recovery.** Image the system disk once
-  :doc:`software_build` verifies, and test the restore.
+  :doc:`software_build` verifies, and test the restore. Plan [TBD].
 
 ----
 

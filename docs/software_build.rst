@@ -167,8 +167,8 @@ Record the signing key locations reported by the installer:
 .. note::
    The certificate ID is generated per installation. Read it from the installer
    output rather than copying a value from this document. The reference build
-   shows ``46155713`` generated and ``9A20B563`` enrolled
-   (:ref:`section-sw-pending`).
+   kept ``nvidia-modsign-crt-9A20B563.der``. Two NVIDIA installer keys are
+   enrolled, one left over from an earlier install (:ref:`section-sw-pending`).
 
 .. _section-mok:
 
@@ -766,7 +766,8 @@ automatically at every boot.
 
 .. note::
    No size limit or ownership is specified in the source notes, so the mount
-   takes the tmpfs default of half of physical RAM and is owned by root.
+   takes the tmpfs default of half of physical RAM (91.9 GB on ``hesperus``)
+   and is ``root:root`` with mode ``1777``, so any account can create streams.
    Confirm whether the RTC processes require a specific size or ownership
    (:ref:`section-sw-pending`). ``nosuid`` and ``nodev`` are standard hardening
    options and carry no performance cost.
@@ -995,23 +996,34 @@ As-built Software Versions
 12. Pending Tasks
 =================
 
-* [ ] **SW-1: RTC application layer.** Source repository, build, configuration,
-  services, startup order and interfaces are all undocumented. Largest open item
-  in the build.
+* [ ] **SW-1: RTC application layer.** The application is the SIGHT Palomar
+  instrument software. As of 2026-10-15 it has no configuration or service
+  definitions yet, and its interfaces will be defined later. Largest open item
+  in the build. ``/data/repos/pyMilk`` is present but not yet covered by this
+  page.
 * [ ] **SW-2: CUDA and driver pairing.** CUDA 13.3.1 requests driver 610.00 or
-  later; 595.91.07 is installed. Determine the supported combination.
-* [ ] **SW-3: NVIDIA modsign certificate ID.** The source log shows
-  ``46155713`` generated and ``9A20B563`` enrolled. Confirm the per-install
-  value at the next rebuild.
-* [ ] **SW-4: MILK environment variable location.** Moved from ``~/.bashrc`` to
-  ``~/.bashrc_rtc``. Confirm no dependency on the original location.
-* [ ] **SW-5: Shared memory sizing.** Confirm whether the RTC processes require
-  a specific tmpfs size or ownership.
+  later; 595.91.07 is installed. ``deviceQuery`` and ``vectorAdd`` pass on this
+  pairing (2026-10-15), but it remains outside NVIDIA's stated support.
+  Decision: move to the most recent NVIDIA driver, then update
+  :ref:`section-nvidia` and re-run :ref:`section-sw-verify`.
+* [x] **SW-3: NVIDIA modsign certificate ID.** Resolved 2026-10-15: the key on
+  disk is ``9A20B563``. A second, stale NVIDIA installer key is still enrolled;
+  remove it with ``mokutil --delete`` at the next console session
+  (:ref:`section-rec-mok`).
+* [x] **SW-4: MILK environment variable location.** Resolved 2026-10-15: the
+  MILK variables are defined only in ``~/.bashrc_rtc``.
+* [ ] **SW-5: Shared memory sizing.** The tmpfs default (91.9 GB,
+  ``root:root`` ``1777``) stands: no size cap is needed for now. Ownership is
+  undetermined.
 * [ ] **SW-6: Upstream workarounds.** Re-check the CACAO ``CMakeLists.txt`` and
   ``python3-config`` fixes after any MILK or Ubuntu update.
-* [ ] **SW-7: Update procedure.** CUDA, MAGMA and MILK are compiled against one
-  another. Define a procedure that updates one layer at a time and re-runs the
-  verification for that layer and every layer above it.
+* [x] **SW-7: Update procedure.** Policy: no routine updates. The stack runs on
+  a working, stable configuration until a change is forced; then update one
+  layer at a time and re-run the verification for that layer and every layer
+  above it.
+* [ ] **SW-8: Nuvu camera configuration.** The framegrabber will capture from
+  the Nuvu camera. Write its EDT camera config and replace the simulated camera
+  test in :ref:`section-edt` with a real capture.
 
 ----
 
