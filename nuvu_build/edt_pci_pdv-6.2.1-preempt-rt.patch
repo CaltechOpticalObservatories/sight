@@ -1,0 +1,25 @@
+--- a/edt_lnx.c
++++ b/edt_lnx.c
+@@ -1584,7 +1584,11 @@
+   uint64_t t;
+ #endif
+ 
+-  preempt_disable(); /* added 03/2015 RWH */
++  /* spin_lock_irqsave() already disables preemption on non-RT kernels. On PREEMPT_RT,
++   * spinlock_t is a sleeping lock and must not be taken with preemption disabled
++   * ("BUG: scheduling while atomic", then lockups), so skip the extra disable there. */
++  if (!IS_ENABLED(CONFIG_PREEMPT_RT))
++    preempt_disable(); /* added 03/2015 RWH */
+ 
+   if (edt_p->m_TraceLevel & 2)
+   {
+@@ -1634,7 +1638,8 @@
+     EdtTrace(edt_p, src);
+   }
+ 
+-  preempt_enable(); /* added 03/2015 RWH */
++  if (!IS_ENABLED(CONFIG_PREEMPT_RT))
++    preempt_enable(); /* added 03/2015 RWH */
+ }
+ 
+ /* Exported serial routines ******************/
