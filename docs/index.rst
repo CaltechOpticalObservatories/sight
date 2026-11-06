@@ -13,13 +13,16 @@ SIGHT RTC: GPU Real-time Build
 A GPU-accelerated real-time controller for SIGHT at Caltech. Camera frames
 arrive over an EDT Camera Link framegrabber, are processed on NVIDIA Blackwell
 GPUs through CUDA and MAGMA, and move between processing stages through MILK
-shared memory backed by RAM. Follow the three parts in order:
+shared memory backed by RAM. Follow the four parts in order:
 
 #. **Physical build:** hardware assembly and inspection.
 #. **RT build:** BIOS and Secure Boot, OS install, identity, filesystem layout,
    RT kernel and CPU shielding.
 #. **Software build:** GPU driver, CUDA, framegrabber, MAGMA, Python, MILK and
    the RTC application.
+#. **Nuvu build:** EDT driver patch for the RT kernel, Nuvu SDK and Python
+   driver for the Nuvu HNü 128 EMCCD camera. Its scripts and test procedures
+   live in ``nuvu_build/`` at the top of this repository.
 
 Results of the open commissioning tasks are recorded in
 :doc:`commissioning`.
@@ -120,3 +123,4 @@ Conventions
    rt_build
    software_build
    commissioning
+   nuvu_build
