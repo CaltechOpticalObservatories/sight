@@ -1,0 +1,25 @@
+# Sight DM bring-up bundle: bmc_dm's configs/sight with a lower ceiling and no default flat
+# Scripts raise the maximum per step through bringup.session(maximum=...), never above 0.8
+
+[dm]
+name = "Sight DM bring-up"
+serial_number = "30CW009#052"
+# No default_flat on purpose, so pokes start from zeros unless given a bias. Keep at least
+# two flats: a bundle with exactly one makes it the default
+
+[limits]
+minimum = 0.0
+maximum = 0.4
+
+[flats]
+inst = "inst.npy"          # Sight_INST_flat.npy, peaks at 0.556
+quick = "quick.npy"        # SightDM_2024Oct4_QuickFlat.npy
+mean250 = "mean250.npy"    # SightDM_2024Oct7_Mean250.npy
+mean400 = "mean400.npy"    # SightDM_2024Oct7_Mean400.npy
+mean500 = "mean500.npy"    # SightDM_2024Oct7_Mean500.npy
+mean600 = "mean600.npy"    # SightDM_2024Oct7_Mean600.npy
+mean700 = "mean700.npy"    # SightDM_2024Oct7_Mean700.npy, peaks at 0.9
+
+[log]
+# Resolves against this folder; the base class adds .log
+file = "../logs/bmc_dm"
