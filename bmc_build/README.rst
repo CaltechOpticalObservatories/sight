@@ -294,9 +294,8 @@ Run with the driver box off.
      - The driver commit under test
    * - ``tools/check.sh``
      - ``check.sh: all passed``
-   * - ``./run.sh sdk_probe.py``
-     - ``bmc`` from ``/opt/Boston Micromachines/lib/python3``, version ``4.1.3``
-   * - ``./run.sh rehearse.py`` and ``./run.sh fault_drill.py``
-     - ``all passed`` (dummy driver; the card is not used)
+   * - ``./run.sh rehearse.py``
+     - SDK ``4.1.3`` from ``/opt/Boston Micromachines/lib/python3``, then
+       ``rehearse: passed`` (dummy driver; the card is not used)
    * - ``./run.sh card_status.py --label boxoff``
      - One board, hardware revision ``v2000_...``, no problems (``testing.rst``)

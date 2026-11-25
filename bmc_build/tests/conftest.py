@@ -8,9 +8,9 @@ flats.
 import shutil
 import sys
 import tomllib
-import types
 from pathlib import Path
 from typing import Final
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
@@ -19,33 +19,33 @@ from bmc_dm import ACTUATOR_MAP_FILE, ActuatorMap
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 import bringup  # pylint: disable=wrong-import-position
-from fake_sdk import NO_ERR, FakeBmcDm  # pylint: disable=wrong-import-position
+from fake_sdk import fake_bmc  # pylint: disable=wrong-import-position
 
 SIGHT_SIDE: Final = 28
 # Inside the bundle's 0.4 soft maximum
 FLAT_LEVEL: Final = 0.3
 
 
-@pytest.fixture(autouse=True)
-def fixture_fake_sdk(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """Install the fake bmc module and write the dummy profile and logs under tmp_path"""
-    monkeypatch.setitem(sys.modules, "bmc", types.SimpleNamespace(BmcDm=FakeBmcDm, NO_ERR=NO_ERR))
-    monkeypatch.setattr(FakeBmcDm, "instances", [])
+@pytest.fixture(name="sdk", autouse=True)
+def fixture_sdk(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> MagicMock:
+    """Install the fake bmc module, keep dummy files and logs in tmp_path, return the device"""
+    bmc = fake_bmc()
+    monkeypatch.setitem(sys.modules, "bmc", bmc)
     monkeypatch.setattr(bringup, "DUMMY_DIR", tmp_path / "dummy")
     monkeypatch.setattr(bringup, "LOGS_DIR", tmp_path / "logs")
+    device: MagicMock = bmc.BmcDm.return_value
+    return device
 
 
 @pytest.fixture(autouse=True)
-def fixture_bundle(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+def fixture_bundle(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Build the bring-up bundle under tmp_path and point bringup at it"""
-    source = bringup.BUNDLE
     bundle = tmp_path / "bundle"
     bundle.mkdir()
-    shutil.copy(source, bundle / source.name)
+    shutil.copy(bringup.BUNDLE, bundle)
     actuator_map = ActuatorMap.circular(SIGHT_SIDE)
     np.savetxt(bundle / ACTUATOR_MAP_FILE, actuator_map.indices, fmt="%d")
     flat = actuator_map.to_surface(np.full(actuator_map.num_actuators, FLAT_LEVEL))
-    for file in tomllib.loads(source.read_text(encoding="utf-8"))["flats"].values():
+    for file in tomllib.loads(bringup.BUNDLE.read_text(encoding="utf-8"))["flats"].values():
         np.save(bundle / file, flat)
-    monkeypatch.setattr(bringup, "BUNDLE", bundle / source.name)
-    return bundle
+    monkeypatch.setattr(bringup, "BUNDLE", bundle / bringup.BUNDLE.name)

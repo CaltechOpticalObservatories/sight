@@ -55,18 +55,10 @@ Scripts and tools
        first line
    * - ``tools/check.sh``
      - Every software check, no SDK or hardware needed
-   * - ``scripts/sdk_probe.py``
-     - Imports ``bmc`` and prints its path and version (expects 4.1.3). Opens no DM
-   * - ``scripts/rehearse.py [--dwell-s S]``
-     - Every hardware phase's actions on the SDK's dummy driver, with the plan's
-       amplitudes and caps. JSON report
-   * - ``scripts/fault_drill.py``
-     - Holds a flat on the dummy driver and interrupts it with Ctrl-C, SIGTERM, SIGHUP
-       and an exception; checks the bias came back and the mirror was zeroed and
-       disconnected. JSON report
-   * - ``scripts/audit_bundle.py``
-     - The bundle's map is BMC's circular 28 x 28 layout, its files match the driver's,
-       and each flat's range, largest neighbor step and values above 0.4, 0.6 and 0.8
+   * - ``scripts/rehearse.py``
+     - Prints the SDK's path and version (expects 4.1.3), checks the bundle's map is BMC's
+       circular 28 x 28 layout, then runs the hardware phases' actions on the SDK's dummy
+       driver with the plan's amplitudes and caps. Stops at the first failure
    * - ``scripts/audit_profile.py PROFILE.dm``
      - Decodes and checks a BMC profile (see ``README.rst``, section 5)
    * - ``scripts/card_status.py``
@@ -81,13 +73,17 @@ Scripts and tools
   reaches the real profile. ``--hardware`` is refused outside tmux.
 * **Always ends at zero.** On every exit (normal, error, Ctrl-C, SIGTERM, SIGHUP) it
   sends ``zero()`` and then ``disconnect()``, with signals held off meanwhile.
-* **Refuses instead of clipping.** ``send()`` prints the peak, the number of actuators
-  moved and the largest neighbor step, and refuses a command whose peak passes the
-  step's cap or that has a value outside the soft limits.
+* **Refuses instead of clipping.** ``send()`` refuses a command that is not finite or
+  falls outside the step's cap or the soft limits, and after sending prints the
+  driver's status: range, values at a limit and largest neighbor step.
 * **Checked limits.** A step may raise the soft maximum, never above 0.8, and SDK folders
   named in the bundle must exist.
 * ``flash_edge`` and ``simulate_turbulence`` send through the driver directly, so the
   driver's clip warning is their only guard.
+
+Every script ends by writing ``logs/<name>_<utc>.json`` with its problems and printing
+``passed`` or ``FAILED``. The cleanup on errors, Ctrl-C, SIGTERM and SIGHUP is tested
+in ``tests/test_bringup.py`` with real signals.
 
 Safety rules
 ============
@@ -143,12 +139,11 @@ Test phases
      - What
      - Status
    * - 0. Software gate
-     - ``check.sh``, SDK build, ``sdk_probe.py``, ``rehearse.py``, ``fault_drill.py``
-       on the dummy driver
+     - ``check.sh``, SDK build, ``rehearse.py`` on the dummy driver
      - **Passed** 2026-11-03 on the SDK build in ``sdk/``, and 2026-11-25 on the
        ``/opt`` install
    * - 1. Audit
-     - ``audit_bundle.py``; BMC's profile (``audit_profile.py``); bench and camera
+     - Bundle (map, flats); BMC's profile (``audit_profile.py``); bench and camera
      - Bundle **passed** 2026-11-03; profile not received; bench open
    * - 1b. Communication
      - The communication test below: card alone, then driver box on, nothing written
@@ -193,10 +188,10 @@ A. Host setup (bench operator, driver box off)
 
    .. code-block:: bash
 
-      cd ~/software/bmc_build && ./run.sh sdk_probe.py && ./run.sh rehearse.py && ./run.sh fault_drill.py
+      cd ~/software/bmc_build && tools/check.sh && ./run.sh rehearse.py
 
-   Expected: the SDK path ``/opt/Boston Micromachines/lib/python3``, version
-   ``4.1.3``, ``rehearse: all passed`` and ``fault_drill: all passed``.
+   Expected: ``check.sh: all passed``; the SDK ``4.1.3`` from
+   ``/opt/Boston Micromachines/lib/python3`` and ``rehearse: passed``.
 
 B. Card only (driver box off)
 -----------------------------
@@ -209,14 +204,15 @@ B. Card only (driver box off)
 
    Expected: one board, hardware revision ``v2000_...``, ``card_status: passed``.
 
-#. 100 more read-only reads, then the kernel log:
+#. 100 more read-only reads, then the kernel log since then:
 
    .. code-block:: bash
 
       ./run.sh card_status.py --label cycles --cycles 100
+      journalctl -k --since "-10 min" --no-pager | grep -iE "bug|warning|bmc"
 
-   Expected: ``card_status: passed`` (every read identical, no kernel BUG or
-   WARNING).
+   Expected: ``card_status: passed`` (every read identical) and no BUG or WARNING
+   line.
 
 C. Driver box on, nothing sent
 ------------------------------
@@ -280,7 +276,7 @@ Reading ``card_status``
      - Kilo driver data errors
 
 ``--compare LABEL`` lists every field that differs from the newest ``LABEL`` report;
-``--cycles N`` repeats the read N times and checks the kernel log afterwards. The
+``--cycles N`` repeats the read N times and requires every read to match the first. The
 expected values with the box on are BMC's to confirm (open question).
 
 If something goes wrong
