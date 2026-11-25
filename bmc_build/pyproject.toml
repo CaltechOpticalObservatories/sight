@@ -1,0 +1,18 @@
+# Tool settings for the BMC DM bring-up scripts and tests; this folder is not a package
+# and is deployed to ~hespy/software/bmc_build on the RTC
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-p no:cacheprovider"
+
+[tool.mypy]
+strict = true
+
+# None of these ship type information
+[[tool.mypy.overrides]]
+module = ["bmc", "hardware_device_base", "poppy"]
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
