@@ -13,7 +13,7 @@ SIGHT RTC: GPU Real-time Build
 A GPU-accelerated real-time controller for SIGHT at Caltech. Camera frames
 arrive over an EDT Camera Link framegrabber, are processed on NVIDIA Blackwell
 GPUs through CUDA and MAGMA, and move between processing stages through MILK
-shared memory backed by RAM. Follow the five parts in order:
+shared memory backed by RAM. Follow the six parts in order:
 
 #. **Physical build:** hardware assembly and inspection.
 #. **RT build:** BIOS and Secure Boot, OS install, identity, filesystem layout,
@@ -26,6 +26,12 @@ shared memory backed by RAM. Follow the five parts in order:
 #. **BMC build:** DM-SDK, PCIe kernel module and Python driver for the BMC
    kilo-DM deformable mirror. Its scripts and test procedures live in
    ``bmc_build/`` at the top of this repository.
+#. **FSM build:** Galil controller, split cable and mirror library for the two
+   fast steering mirrors. Its scripts and test procedures live in
+   ``fsm_build/`` at the top of this repository.
+
+Parts 4 to 6 follow one layout, set out in :doc:`device_builds`: each device has a
+build guide and a test procedure page.
 
 Results of the open commissioning tasks are recorded in
 :doc:`commissioning`.
@@ -126,5 +132,10 @@ Conventions
    rt_build
    software_build
    commissioning
+   device_builds
    nuvu_build
+   nuvu_testing
    bmc_build
+   bmc_testing
+   fsm_build
+   fsm_testing

@@ -2,12 +2,14 @@
 Nuvu HNü 128: SDK Build on the SIGHT RTC
 =========================================
 
+:Status: Built; Phases 0 to 4 passed, Phase 5 waits for confirmed camera cooling
 :Prerequisite: :doc:`software_build` through :ref:`section-edt` complete and verified
-:Camera: Nuvu HNü 128, SN06283454, CCD60 128x128 EMCCD, on EDT unit 0, Camera Link
-         channel 0
+:Hardware: Nuvu HNü 128 EMCCD camera, SN06283454, CCD60 128x128
+:Interface: EDT VisionLink F1 framegrabber, unit 0, Camera Link channel 0
 :SDK: Nuvu SDK 4.12.0, Ubuntu 22.04 build (``NuPixel``), installed by hand
+:Driver: ``nuvu`` (``github.com/COO-Utilities/nuvu``); commit in ``venv/DRIVER_VERSION``
 :Reference build: 2026-11-03, ``hesperus``, kernel ``7.0.0-38-realtime``
-:Testing: ``nuvu_build/testing.rst`` (test procedures, phases and status)
+:Testing: :doc:`nuvu_testing` (``nuvu_build/testing.rst``)
 
 The Nuvu HNü 128 is read out through the EDT VisionLink F1 that
 :ref:`section-edt` installs. Nuvu's SDK (``libnuvu``) drives it through an EDT

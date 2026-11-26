@@ -9,7 +9,7 @@ them.
 
 How the camera is tested on ``sight-rtc``: safety rules, how a session runs, the test
 phases and their status, and what to do when something goes wrong. Building the host
-side (EDT patch, Nuvu SDK, Python driver, tools) is in ``README.rst`` in this folder.
+side (EDT patch, Nuvu SDK, Python driver, tools) is in :doc:`nuvu_build` (``README.rst`` in this folder).
 
 Records (session logs, run output, findings) are kept on the workstation, not here; see
 `Records`_.
@@ -168,75 +168,6 @@ Any stop condition, unexpected error or doubt ends the session at a safe state (
 understood. No driver changes in the middle of a test round: log the finding, finish or
 stop the round, change the driver, restart from Phase 0.
 
-Before a session
-================
-
-.. code-block:: bash
-
-   uname -r                                   # 7.0.0-38-realtime
-   ls /var/run/reboot-required 2>/dev/null    # nothing pending
-   who                                        # nobody else logged in
-   fuser -v /dev/pdv0_*                       # nothing has the board open
-   cat /sys/module/edt_pci_pdv/srcversion     # 38A1C0CA3BF007F52131B1A (patched)
-   journalctl -k -b --no-pager | grep -E "BUG|WARNING|edt_pci_pdv" | tail   # no BUGs
-   cat ~/nuvu_build/venv/DRIVER_VERSION       # the driver under test
-   ip -4 addr show enp100s0                   # 192.168.1.10/24 (for the PDU)
-   pgrep -a nuPixel                           # NuPixel closed (one program at a time)
-
-Then read outlet 5 (must be off) and the light outlets (see Camera power).
-
-At the bench: ambient temperature, humidity and dew point noted; vents clear; cap on;
-light off; abort procedure at hand.
-
-Camera power (PDU outlet 5)
-===========================
-
-The PDU is reached over ``enp100s0``. Its address is set by hand and is **lost on every
-reboot** (netplan does not cover this interface). Restore it with:
-
-.. code-block:: bash
-
-   sudo ip addr add 192.168.1.10/24 dev enp100s0
-
-Switch the outlet with the ``wti_nps`` library in ``~/test/pdu/src``, using the shared RTC
-Python. The library's defaults hold the login. Always read the state back after
-switching:
-
-.. code-block:: bash
-
-   cd ~/test/pdu/src
-   /opt/rtc_python/rtc_venv3.14.4/bin/python - <<'PY'
-   from wti_nps import WtiNps
-   pdu = WtiNps(log=False)
-   pdu.connect("192.168.1.11")
-   pdu.initialize()                                      # required before per-outlet calls
-   print(pdu.get_outlet_name(5), pdu.outlet_status(5))   # read only: "Nuvu" False
-   # pdu.outlet_on(5)    # only after the bench operator's go
-   # pdu.outlet_off(5)   # only after warm_and_close.py (or as an emergency)
-   print(pdu.get_outlets())
-   pdu.disconnect()
-   PY
-
-After power-on, wait 15 s before talking to the camera. After an emergency power-off,
-keep it off for at least 5 minutes.
-
-The same PDU powers light sources and lasers (outlets 1, 2, 4, 9 and 14: laser controller,
-laser safety, FSM laser, Pockels cell, visible light source). Check they are off before
-any dark phase.
-
-Running a step
-==============
-
-.. code-block:: bash
-
-   tmux new -s nuvu                 # or: tmux attach -t nuvu
-   cd ~/nuvu_build
-   ./run.sh status.py --unit 0 --channel 0
-
-Always pass ``--unit 0 --channel 0``; auto-detect scans every channel, including the noisy
-channel 1 (see `Known issues and watch items`_). A connect takes about 17 s
-(about 10 s to open, 6.7 s for the camera to load readout mode 1).
-
 Test phases
 ===========
 
@@ -310,17 +241,74 @@ above bias); dark current 0.012 e⁻/px/s at operating temperature. Read noise i
 stay about constant as EM gain rises. Measured warm (Phase 3): read noise 10.0 to 10.5
 ADU; bias 3548 to 3616 ADU at analog gain 1, offset 5800; 524.5 Hz in mode 1 at 1 ms.
 
-If something goes wrong
-=======================
+Before a session
+================
 
-1. **Light first:** block the beam or put the cap on.
-2. ``./run.sh safe_dark.py``
-3. **Overheating or condensation:** power the camera off now (PDU outlet 5) and keep it
-   off at least 5 minutes. Any other thermal doubt: ``./run.sh warm_and_close.py``.
-4. **Script unresponsive or SSH lost:** ``tmux attach -t nuvu``, Ctrl-C, kill it if needed.
-   Then a fresh ``safe_dark.py``, then ``warm_and_close.py``.
-5. **Host hang or kernel BUG:** stop all camera work; check ``journalctl -k -b -1`` after the
-   reboot and that the patched EDT module is loaded.
+.. code-block:: bash
+
+   uname -r                                   # 7.0.0-38-realtime
+   ls /var/run/reboot-required 2>/dev/null    # nothing pending
+   who                                        # nobody else logged in
+   fuser -v /dev/pdv0_*                       # nothing has the board open
+   cat /sys/module/edt_pci_pdv/srcversion     # 38A1C0CA3BF007F52131B1A (patched)
+   journalctl -k -b --no-pager | grep -E "BUG|WARNING|edt_pci_pdv" | tail   # no BUGs
+   cat ~/nuvu_build/venv/DRIVER_VERSION       # the driver under test
+   ip -4 addr show enp100s0                   # 192.168.1.10/24 (for the PDU)
+   pgrep -a nuPixel                           # NuPixel closed (one program at a time)
+
+Then read outlet 5 (must be off) and the light outlets (see Camera power).
+
+At the bench: ambient temperature, humidity and dew point noted; vents clear; cap on;
+light off; abort procedure at hand.
+
+Camera power (PDU outlet 5)
+===========================
+
+The PDU is reached over ``enp100s0``. Its address is set by hand and is **lost on every
+reboot** (netplan does not cover this interface). Restore it with:
+
+.. code-block:: bash
+
+   sudo ip addr add 192.168.1.10/24 dev enp100s0
+
+Switch the outlet with the ``wti_nps`` library in ``~/test/pdu/src``, using the shared RTC
+Python. The library's defaults hold the login. Always read the state back after
+switching:
+
+.. code-block:: bash
+
+   cd ~/test/pdu/src
+   /opt/rtc_python/rtc_venv3.14.4/bin/python - <<'PY'
+   from wti_nps import WtiNps
+   pdu = WtiNps(log=False)
+   pdu.connect("192.168.1.11")
+   pdu.initialize()                                      # required before per-outlet calls
+   print(pdu.get_outlet_name(5), pdu.outlet_status(5))   # read only: "Nuvu" False
+   # pdu.outlet_on(5)    # only after the bench operator's go
+   # pdu.outlet_off(5)   # only after warm_and_close.py (or as an emergency)
+   print(pdu.get_outlets())
+   pdu.disconnect()
+   PY
+
+After power-on, wait 15 s before talking to the camera. After an emergency power-off,
+keep it off for at least 5 minutes.
+
+The same PDU powers light sources and lasers (outlets 1, 2, 4, 9 and 14: laser controller,
+laser safety, FSM laser, Pockels cell, visible light source). Check they are off before
+any dark phase.
+
+Running a step
+==============
+
+.. code-block:: bash
+
+   tmux new -s nuvu                 # or: tmux attach -t nuvu
+   cd ~/nuvu_build
+   ./run.sh status.py --unit 0 --channel 0
+
+Always pass ``--unit 0 --channel 0``; auto-detect scans every channel, including the noisy
+channel 1 (see `Known issues and watch items`_). A connect takes about 17 s
+(about 10 s to open, 6.7 s for the camera to load readout mode 1).
 
 After a session
 ===============
@@ -340,12 +328,48 @@ Then camera off at the PDU, cap on. Copy the output to the workstation and clear
    # on the RTC, once the copy is checked
    rm -rf ~/nuvu_build/logs ~/nuvu_build/frames
 
-Host build and maintenance
-==========================
+If something goes wrong
+=======================
 
-The EDT driver patch, the Nuvu SDK install, the Python driver environment, the tools,
-the camera-off verification and kernel or driver updates are in ``README.rst`` in this
-folder. Change the driver between test rounds only, then restart the round at Phase 0.
+1. **Light first:** block the beam or put the cap on.
+2. ``./run.sh safe_dark.py``
+3. **Overheating or condensation:** power the camera off now (PDU outlet 5) and keep it
+   off at least 5 minutes. Any other thermal doubt: ``./run.sh warm_and_close.py``.
+4. **Script unresponsive or SSH lost:** ``tmux attach -t nuvu``, Ctrl-C, kill it if needed.
+   Then a fresh ``safe_dark.py``, then ``warm_and_close.py``.
+5. **Host hang or kernel BUG:** stop all camera work; check ``journalctl -k -b -1`` after the
+   reboot and that the patched EDT module is loaded.
+
+Records
+=======
+
+Kept on the workstation, under ``~/sight-dev/``:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Path
+     - What
+   * - ``daily_log/<date>.md``
+     - Running log of each day: what was done, results, decisions, open items
+   * - ``daily_log/rtc/session_notes.md``
+     - Bring-up notes kept on this host until 2026-11-03
+   * - ``daily_log/rtc/logs/``, ``daily_log/rtc/frames/``
+     - Output copied from ``logs/`` and ``frames/`` here (``logs/sdk_4.2.1/`` = before the SDK switch)
+   * - ``daily_log/rtc/phase*_<date>/``, ``daily_log/rtc/archive_<date>/``
+     - Per-phase outputs, and the end-of-day archive of ``logs/``, ``frames/`` and the SDK logs
+   * - ``plans/nuvu_test_plan.md``
+     - Full test plan behind the phase table
+   * - ``plans/nuvu_test_status.md``
+     - Current phase status and next steps
+   * - ``edt_pdv_6.2.1_preempt_rt.md``
+     - Both EDT bugs, evidence, patch and tests
+   * - ``rt_kernel_dkms_initramfs_panic.md``
+     - The realtime-kernel boot failure and its fix
+   * - ``nuvu/`` (repo, branch ``elijahab/testing-final``)
+     - The Python driver installed in ``venv/``
+   * - ``sight/nuvu_build/`` (sight repository)
+     - Master copy of this folder
 
 Known issues and watch items
 ============================
@@ -396,34 +420,3 @@ Known issues and watch items
   ``None`` when unknown and ``disconnect()`` then aborts; ``set_timeout()`` is a manual
   override until ``use_auto_timeout()``; ``get_safe_shutdown_temperature()`` is ``None`` when
   the camera reports no value.
-
-Records
-=======
-
-Kept on the workstation, under ``~/sight-dev/``:
-
-.. list-table::
-   :header-rows: 1
-
-   * - Path
-     - What
-   * - ``daily_log/<date>.md``
-     - Running log of each day: what was done, results, decisions, open items
-   * - ``daily_log/rtc/session_notes.md``
-     - Bring-up notes kept on this host until 2026-11-03
-   * - ``daily_log/rtc/logs/``, ``daily_log/rtc/frames/``
-     - Output copied from ``logs/`` and ``frames/`` here (``logs/sdk_4.2.1/`` = before the SDK switch)
-   * - ``daily_log/rtc/phase*_<date>/``, ``daily_log/rtc/archive_<date>/``
-     - Per-phase outputs, and the end-of-day archive of ``logs/``, ``frames/`` and the SDK logs
-   * - ``plans/nuvu_test_plan.md``
-     - Full test plan behind the phase table
-   * - ``plans/nuvu_test_status.md``
-     - Current phase status and next steps
-   * - ``edt_pdv_6.2.1_preempt_rt.md``
-     - Both EDT bugs, evidence, patch and tests
-   * - ``rt_kernel_dkms_initramfs_panic.md``
-     - The realtime-kernel boot failure and its fix
-   * - ``nuvu/`` (repo, branch ``elijahab/testing-final``)
-     - The Python driver installed in ``venv/``
-   * - ``sight/nuvu_build/`` (sight repository)
-     - Master copy of this folder
