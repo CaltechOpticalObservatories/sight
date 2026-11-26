@@ -5,7 +5,7 @@ BMC Kilo-DM: Testing on the SIGHT RTC
 How the deformable mirror is tested on ``sight-rtc`` (``hesperus``): safety rules, how a
 session runs, the test phases and their status, the communication test, and what to do
 when something goes wrong. Building the host side (SDK, PCIe module, BMC's files,
-Python driver) is in ``README.rst`` in this folder. The full test plan is
+Python driver) is in :doc:`bmc_build` (``README.rst`` in this folder). The full test plan is
 ``~/sight-dev/plans/bmc_dm_test_plan.md`` on the workstation.
 
 Records (session logs, run output, findings) are kept on the workstation, not here; see
@@ -289,7 +289,7 @@ If something goes wrong
 3. **Kernel BUG or host hang:** stop all mirror work; check ``journalctl -k -b -1`` after
    the reboot.
 4. **To take the SDK out entirely:** ``sudo ./uninstall_bmc_sdk.sh`` (``README.rst``,
-   section 6).
+   section 7).
 
 Records
 =======

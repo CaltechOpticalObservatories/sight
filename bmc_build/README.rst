@@ -2,16 +2,18 @@
 BMC Kilo-DM: SDK Build on the SIGHT RTC
 ===========================================
 
+:Status: Built (SDK and module installed 2026-11-25, Phase 0 passed); BMC's mirror
+         files pending
 :Prerequisite: :doc:`software_build` through :ref:`section-mok` complete (Secure Boot
                key enrolled); kernel ``7.0.0-38-realtime`` held
-:Mirror: Boston Micromachines kilo-DM ``30CW009#052``, 648 actuators on a 28 x 28 grid
+:Hardware: Boston Micromachines kilo-DM ``30CW009#052``, 648 actuators on a 28 x 28 grid
 :Interface: BMC PCIe card at ``c1:00.0`` (``1a8f:2000``), fiber to the driver box
 :SDK: DM-SDK 4.1.3 with the team's Ubuntu 26.04 patch, built from source
 :Driver: ``bmc_dm`` (``github.com/COO-Utilities/bmc_dm``), ``main`` ``9546ba0``
-:Reference build: 2026-11-03 SDK build on ``hesperus``; 2026-11-25 SDK and module
-                  installed by hand with the steps ``install_bmc_sdk.sh`` automates,
-                  Phase 0 passed on it. Section 5 waits for BMC's files
-:Testing: ``bmc_build/testing.rst`` (test procedures, phases and status)
+:Reference build: 2026-11-03 SDK build and 2026-11-25 install on ``hesperus``, kernel
+                  ``7.0.0-38-realtime``; the install was done by hand with the steps
+                  ``install_bmc_sdk.sh`` automates
+:Testing: :doc:`bmc_testing` (``bmc_build/testing.rst``)
 
 The deformable mirror is driven through BMC's DM-SDK, which talks to a PCIe card in the
 RTC; the card sends actuator values over fiber to BMC's driver box, which holds the high
@@ -46,7 +48,7 @@ This folder (``bmc_build/`` in the sight repository) is deployed to
      - Use
    * - ``install_bmc_sdk.sh``, ``uninstall_bmc_sdk.sh``
      - Sign the PCIe module, install the SDK and module, restrict the card to a group;
-       and remove it all again (sections 4 and 6)
+       and remove it all again (sections 4 and 7)
    * - ``install_bmc_files.sh``
      - Install BMC's profile, map and calibration files after the profile audit passes
        (section 5)
@@ -253,25 +255,9 @@ file.
 
 ----
 
-.. _section-bmc-uninstall:
-
-6. Uninstall
-============
-
-.. code-block:: bash
-
-   cd ~/software/bmc_build && sudo ./uninstall_bmc_sdk.sh
-
-It refuses while any process has the card open or the SDK loaded, then unloads the
-module and removes ``/opt/Boston Micromachines``, the ``ld.so`` entry, the udev rules,
-the autoload entry, the installed module and the ``bmc-dm`` group. BMC's original files
-stay in ``bmc_files/``.
-
-----
-
 .. _section-bmc-verify:
 
-7. Verification
+6. Verification
 ===============
 
 Run with the driver box off.
@@ -299,3 +285,35 @@ Run with the driver box off.
        ``rehearse: passed`` (dummy driver; the card is not used)
    * - ``./run.sh card_status.py --label boxoff``
      - One board, hardware revision ``v2000_...``, no problems (``testing.rst``)
+
+----
+
+.. _section-bmc-uninstall:
+
+7. Uninstall
+============
+
+.. code-block:: bash
+
+   cd ~/software/bmc_build && sudo ./uninstall_bmc_sdk.sh
+
+It refuses while any process has the card open or the SDK loaded, then unloads the
+module and removes ``/opt/Boston Micromachines``, the ``ld.so`` entry, the udev rules,
+the autoload entry, the installed module and the ``bmc-dm`` group. BMC's original files
+stay in ``bmc_files/``.
+
+----
+
+.. _section-bmc-maintenance:
+
+8. Maintenance
+==============
+
+* **Kernel updates.** Keep the real-time kernel held during mirror testing. A new kernel
+  needs ``bmc_mdrv.ko`` rebuilt (section 3), signed and installed again (section 4).
+* **SDK updates.** A new SDK needs new pinned hashes in ``install_bmc_sdk.sh`` and a rerun
+  of Phase 0.
+* **Driver updates** happen between test rounds only (section 2); the round then restarts
+  from Phase 0.
+* **BMC's udev rule** comes back whenever the SDK's ``install.sh`` runs again; write the
+  ``bmc-dm`` rule again by hand (section 4, step 4).
